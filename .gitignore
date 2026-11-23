@@ -1,0 +1,12 @@
+# ไฟล์ place ที่ build ได้เอง
+*.rbxl
+*.rbxlx
+*.lock
+!rokit.lock
+sourcemap.json
+roblox.yml
+# ระบบ
+.DS_Store
+Thumbs.db
+# ความลับ
+.env

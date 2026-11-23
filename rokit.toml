@@ -1,0 +1,5 @@
+# เวอร์ชันเครื่องมือของทีม — ทุกคนใช้ตรงกัน (รัน `rokit install` ในโฟลเดอร์นี้)
+[tools]
+rojo = "rojo-rbx/rojo@7.7.1"
+selene = "Kampfkarren/selene@0.32.0"
+stylua = "JohnnyMorganz/StyLua@2.6.0"

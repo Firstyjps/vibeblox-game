@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools (versions from rokit.toml)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/bin"
+          ver() { grep "^$1 " rokit.toml | sed -E 's/.*@([^"]+)".*/\1/'; }
+          ROJO=$(ver rojo); SELENE=$(ver selene); STYLUA=$(ver stylua)
+          cd "$RUNNER_TEMP"
+          curl -fsSL -o rojo.zip   "https://github.com/rojo-rbx/rojo/releases/download/v${ROJO}/rojo-${ROJO}-linux-x86_64.zip"
+          curl -fsSL -o selene.zip "https://github.com/Kampfkarren/selene/releases/download/${SELENE}/selene-${SELENE}-linux.zip"
+          curl -fsSL -o stylua.zip "https://github.com/JohnnyMorganz/StyLua/releases/download/v${STYLUA}/stylua-linux-x86_64.zip"
+          for z in rojo selene stylua; do unzip -o -q "$z.zip" -d "$HOME/bin"; done
+          chmod +x "$HOME/bin"/*
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Format check (StyLua)
+        run: stylua --check src
+
+      - name: Lint (Selene)
+        run: selene src
+
+      - name: Build (Rojo)
+        run: rojo build -o build.rbxlx
