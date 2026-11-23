@@ -1,7 +1,7 @@
 # 🛠️ ติดตั้งโปรเจกต์ vibeblox-game (ทำครั้งเดียว)
 
 ## ก่อนเริ่ม
-1. **กดรับคำเชิญ GitHub** ในอีเมล หรือเข้า https://github.com/Firstyjps/vibeblox-game/invitations
+1. **กดรับคำเชิญ GitHub** ในอีเมล หรือเข้า https://github.com/kron-studio/vibeblox-game/invitations
 2. เปิด **Claude Code** (หรือ Antigravity) ในโฟลเดอร์ที่อยากเก็บงาน เช่น Desktop
 3. copy ข้อความในกรอบด้านล่างทั้งหมดไปวางให้ AI แล้วทำตามที่มันบอก
 
@@ -14,7 +14,7 @@
    - ถ้าไม่มี git หรือ gh ให้ติดตั้ง (Mac ใช้ brew ส่วน Windows ใช้ winget)
    - ถ้าไม่มี Roblox Studio ให้บอกฉันไปโหลดเองที่ https://create.roblox.com แล้วรอฉัน
 2. เช็กว่าล็อกอิน GitHub แล้วหรือยัง (gh auth status) ถ้ายัง ให้รัน gh auth login แล้วบอกฉันว่าต้องกดอะไร
-3. clone repo https://github.com/Firstyjps/vibeblox-game.git แล้ว cd เข้าไป
+3. clone repo https://github.com/kron-studio/vibeblox-game.git แล้ว cd เข้าไป
 4. ติดตั้ง Rokit
    - Mac: curl -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
    - Windows (PowerShell): irm https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.ps1 | iex
