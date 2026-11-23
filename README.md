@@ -11,7 +11,7 @@
 ### ทุกคน
 1. **Roblox Studio** — โหลดจาก https://create.roblox.com แล้วล็อกอิน
 2. **Git** — Mac: มีอยู่แล้ว (พิมพ์ `git --version` ถ้าไม่มีจะให้ติดตั้งเอง) · Windows: https://git-scm.com
-3. **GitHub** — สมัครบัญชี แล้วส่งชื่อผู้ใช้ให้คนดูแลเพื่อเชิญเข้า org
+3. **GitHub** — สมัครบัญชี แล้วส่งชื่อผู้ใช้ให้คนดูแลเพื่อเชิญเป็น collaborator
 4. **VS Code** (หรือ Cursor / Antigravity) — เปิดโปรเจกต์แล้วกด *Install* ตามที่มันแนะนำ extension (Rojo, Luau LSP, StyLua, Selene)
 
 ### ติดตั้งเครื่องมือของทีมด้วย Rokit (ได้เวอร์ชันตรงกันทุกคน)
@@ -25,7 +25,7 @@ irm https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.ps1 | 
 ```
 ปิดแล้วเปิด Terminal ใหม่ จากนั้น:
 ```bash
-git clone https://github.com/<ชื่อ-org>/vibeblox-game.git
+git clone https://github.com/Firstyjps/vibeblox-game.git
 cd vibeblox-game
 rokit install          # ลง rojo, selene, stylua ตามเวอร์ชันใน rokit.toml
 rojo plugin install    # ลงปลั๊กอิน Rojo เข้า Roblox Studio
