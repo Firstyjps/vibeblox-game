@@ -3,6 +3,10 @@
 เกม Roblox ของทีม **Vibeblox** — เขียนโค้ดเป็นไฟล์ (Luau + Rojo) ใช้ git ทำงานร่วมกัน และใช้ AI (Claude / Antigravity) ช่วยเขียน
 
 > 🤖 **ใช้ AI ช่วย?** AI ทุกตัวจะอ่าน [`AGENTS.md`](AGENTS.md) อัตโนมัติ — ในนั้นมีกติกาโค้ดและโครงสร้างโปรเจกต์ทั้งหมด
+>
+> ⚡ **ทางลัด:** copy prompt ไปวางใน Claude / Antigravity ได้เลย
+> - ติดตั้งครั้งแรก → [`docs/prompts/01-setup.md`](docs/prompts/01-setup.md)
+> - ทำงานแต่ละครั้ง → [`docs/prompts/02-task.md`](docs/prompts/02-task.md)
 
 ---
 
