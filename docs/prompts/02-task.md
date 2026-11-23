@@ -1,7 +1,7 @@
 # 🎮 ทำงาน / เพิ่มฟีเจอร์ (ใช้ทุกครั้งที่จะทำงาน)
 
 ## ก่อนเริ่ม
-1. เลือกงานจากแท็บ **Issues** ใน https://github.com/Firstyjps/vibeblox-game/issues แล้วกด assign ให้ตัวเอง (จะได้ไม่ทำซ้ำกับเพื่อน)
+1. เลือกงานจากแท็บ **Issues** ใน https://github.com/kron-studio/vibeblox-game/issues แล้วกด assign ให้ตัวเอง (จะได้ไม่ทำซ้ำกับเพื่อน)
 2. เปิด **Claude Code** (หรือ Antigravity) **ในโฟลเดอร์ `vibeblox-game`**
 3. copy ข้อความในกรอบด้านล่าง → **แก้บรรทัดแรกเป็นงานที่จะทำ** → วางให้ AI
 

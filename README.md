@@ -29,7 +29,7 @@ irm https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.ps1 | 
 ```
 ปิดแล้วเปิด Terminal ใหม่ จากนั้น:
 ```bash
-git clone https://github.com/Firstyjps/vibeblox-game.git
+git clone https://github.com/kron-studio/vibeblox-game.git
 cd vibeblox-game
 rokit install          # ลง rojo, selene, stylua ตามเวอร์ชันใน rokit.toml
 rojo plugin install    # ลงปลั๊กอิน Rojo เข้า Roblox Studio
