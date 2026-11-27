@@ -12,17 +12,58 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 
+export type SummonEntry = { Kind: string, Level: number, XP: number }
+
 export type Data = {
 	Coins: number,
+	Gems: number,
+	Race: string, -- "" = ยังไม่เลือก
+	Level: number,
+	XP: number,
+	Rebirths: number,
+	DamageUpgrades: number,
+	HealthUpgrades: number,
+	WorldUnlocked: number, -- โลกไกลสุดที่เปิดแล้ว (ภารกิจนับเฉพาะโลกนี้)
+	QuestKills: number,
+	QuestBoss: boolean,
+	Summons: { [string]: SummonEntry }, -- id → summon
+	Equipped: { string }, -- id ของ summon ที่ใส่ทีม
+	NextSummonId: number,
 }
 
 local DEFAULT: Data = {
 	Coins = Config.STARTING_COINS,
+	Gems = Config.STARTING_GEMS,
+	Race = "",
+	Level = 1,
+	XP = 0,
+	Rebirths = 0,
+	DamageUpgrades = 0,
+	HealthUpgrades = 0,
+	WorldUnlocked = 1,
+	QuestKills = 0,
+	QuestBoss = false,
+	Summons = {},
+	Equipped = {},
+	NextSummonId = 1,
 }
 
 -- ค่าที่ส่งให้ client ผ่าน player Attribute (อ่านใน client ด้วย player:GetAttribute("Coins"))
-local REPLICATED_FIELDS = { "Coins" }
-local LEADERSTATS = { "Coins" }
+-- (Summons/Equipped เป็นตาราง → SummonService ส่งเองเป็น JSON)
+local REPLICATED_FIELDS = {
+	"Coins",
+	"Gems",
+	"Race",
+	"Level",
+	"XP",
+	"Rebirths",
+	"DamageUpgrades",
+	"HealthUpgrades",
+	"WorldUnlocked",
+	"QuestKills",
+	"QuestBoss",
+}
+local LEADERSTATS = { "Level", "Rebirths", "Coins" }
 
 local MAX_RETRIES = 3
 
@@ -60,8 +101,20 @@ local function withRetry<T>(label: string, fn: () -> T): (boolean, any)
 	return false, lastErr
 end
 
+-- copy ลึก (ตารางซ้อนต้องไม่แชร์กันระหว่างผู้เล่น)
+local function deepCopy<T>(value: T): T
+	if type(value) ~= "table" then
+		return value
+	end
+	local copy = {}
+	for key, item in value :: any do
+		copy[key] = deepCopy(item)
+	end
+	return copy :: any
+end
+
 local function sanitize(saved: unknown): Data
-	local data = table.clone(DEFAULT)
+	local data = deepCopy(DEFAULT)
 	if type(saved) == "table" then
 		local raw: any = data
 		for key, default in DEFAULT :: any do
@@ -97,7 +150,7 @@ local function save(player: Player)
 	if not session or not session.canSave or not session.dirty or not store then
 		return
 	end
-	local snapshot = table.clone(session.data)
+	local snapshot = deepCopy(session.data)
 	session.dirty = false
 	local ok = withRetry(`เซฟ {player.Name}`, function()
 		return store:UpdateAsync(tostring(player.UserId), function()
@@ -119,7 +172,7 @@ local function onPlayerAdded(player: Player)
 	end
 	leaderstats.Parent = player
 
-	local data, canSave = table.clone(DEFAULT), false
+	local data, canSave = deepCopy(DEFAULT), false
 	if store then
 		local ok, saved = withRetry(`โหลด {player.Name}`, function()
 			return store:GetAsync(tostring(player.UserId))
