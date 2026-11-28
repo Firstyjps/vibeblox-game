@@ -12,17 +12,69 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 
+export type SummonEntry = { Kind: string, Level: number, XP: number }
+
 export type Data = {
 	Coins: number,
+	Gems: number,
+	RebirthTokens: number,
+	Race: string, -- "" = ยังไม่เลือก
+	Level: number,
+	XP: number,
+	SkillPoints: number, -- point ที่ยังไม่ได้ใช้
+	StatHealth: number,
+	StatAttack: number,
+	StatSpeed: number,
+	RaceSkills: { [string]: number }, -- id สกิลเผ่า → ขั้น
+	Rebirths: number,
+	StageUnlocked: number, -- ด่านไกลสุดที่เปิดแล้ว (นับความคืบหน้าเฉพาะด่านนี้)
+	StageKills: number,
+	BossDefeated: boolean, -- ล้มบอสโลก 1 แล้ว (เงื่อนไข Rebirth)
+	Summons: { [string]: SummonEntry }, -- id → สัตว์
+	Equipped: { string }, -- id ของสัตว์ที่ใส่ทีม
+	NextSummonId: number,
 }
 
 local DEFAULT: Data = {
 	Coins = Config.STARTING_COINS,
+	Gems = Config.STARTING_GEMS,
+	RebirthTokens = 0,
+	Race = "",
+	Level = 1,
+	XP = 0,
+	SkillPoints = 0,
+	StatHealth = 0,
+	StatAttack = 0,
+	StatSpeed = 0,
+	RaceSkills = {},
+	Rebirths = 0,
+	StageUnlocked = 1,
+	StageKills = 0,
+	BossDefeated = false,
+	Summons = {},
+	Equipped = {},
+	NextSummonId = 1,
 }
 
 -- ค่าที่ส่งให้ client ผ่าน player Attribute (อ่านใน client ด้วย player:GetAttribute("Coins"))
-local REPLICATED_FIELDS = { "Coins" }
-local LEADERSTATS = { "Coins" }
+-- (ตาราง Summons/Equipped/RaceSkills → SummonService/SkillService ส่งเองเป็น JSON)
+local REPLICATED_FIELDS = {
+	"Coins",
+	"Gems",
+	"RebirthTokens",
+	"Race",
+	"Level",
+	"XP",
+	"SkillPoints",
+	"StatHealth",
+	"StatAttack",
+	"StatSpeed",
+	"Rebirths",
+	"StageUnlocked",
+	"StageKills",
+	"BossDefeated",
+}
+local LEADERSTATS = { "Level", "Rebirths", "Coins" }
 
 local MAX_RETRIES = 3
 
@@ -60,8 +112,20 @@ local function withRetry<T>(label: string, fn: () -> T): (boolean, any)
 	return false, lastErr
 end
 
+-- copy ลึก (ตารางซ้อนต้องไม่แชร์กันระหว่างผู้เล่น)
+local function deepCopy<T>(value: T): T
+	if type(value) ~= "table" then
+		return value
+	end
+	local copy = {}
+	for key, item in value :: any do
+		copy[key] = deepCopy(item)
+	end
+	return copy :: any
+end
+
 local function sanitize(saved: unknown): Data
-	local data = table.clone(DEFAULT)
+	local data = deepCopy(DEFAULT)
 	if type(saved) == "table" then
 		local raw: any = data
 		for key, default in DEFAULT :: any do
@@ -97,7 +161,7 @@ local function save(player: Player)
 	if not session or not session.canSave or not session.dirty or not store then
 		return
 	end
-	local snapshot = table.clone(session.data)
+	local snapshot = deepCopy(session.data)
 	session.dirty = false
 	local ok = withRetry(`เซฟ {player.Name}`, function()
 		return store:UpdateAsync(tostring(player.UserId), function()
@@ -119,7 +183,7 @@ local function onPlayerAdded(player: Player)
 	end
 	leaderstats.Parent = player
 
-	local data, canSave = table.clone(DEFAULT), false
+	local data, canSave = deepCopy(DEFAULT), false
 	if store then
 		local ok, saved = withRetry(`โหลด {player.Name}`, function()
 			return store:GetAsync(tostring(player.UserId))

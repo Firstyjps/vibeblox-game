@@ -60,7 +60,29 @@ rojo serve                             # เปิดค้างไว้ระ
 
 ---
 
-## 3. เพิ่มระบบใหม่
+## 3. วิธีเล่น / ทดสอบเกม
+
+เกมคือ **Mystic Creature Simulator** — รายละเอียดทั้งหมดอยู่ใน [`docs/GDD.md`](docs/GDD.md) · ตัวเลขทั้งหมดปรับได้ใน `src/shared/Config.luau`
+
+| ทำอะไร | ยังไง |
+|---|---|
+| เลือกเผ่า | ขึ้นเองตอนเข้าเกมครั้งแรก (เลือกได้ครั้งเดียว) |
+| ตีมอน | ปุ่ม ⚔️ ล่างกลางจอ · PC คลิกซ้าย หรือกด **F** ค้างไว้ |
+| ไปด่านถัดไป | ฆ่ามอนให้ครบ (ดูกล่องขวาบน) แล้วเดินไปประตูสีส้ม กด **E** |
+| สุ่มสัตว์ | เมนูขวา 🥚 **Summon** หรือเดินไปที่ไข่ใกล้จุดเกิด (ใช้ Coins) |
+| จัดทีม / ปล่อยสัตว์ | เมนูขวา 🎒 **กระเป๋า** (ใส่ทีมได้ 3 ตัว) |
+| อัปค่าพลัง | เมนูขวา ⭐ **Skills** (เลเวลอัปได้ 3 points · สกิลเผ่าปลดที่ Lv.10) |
+| Rebirth | เมนูขวา 🔁 **Rebirth** (ต้องล้มบอสด่าน 5 + มี Coins ถึงเกณฑ์) |
+
+**ปุ่ม Dev** (🛠 Dev: เผ่า) — เปลี่ยนเผ่าได้อิสระไว้ทดสอบ · ใน Studio ทุกคนเห็นปุ่มนี้ · ในเกมจริงต้องใส่ UserId ใน `Config.DEV_USER_IDS`
+
+**เช็กลิสต์ก่อนส่ง PR:** เลือกเผ่า → ตีมอน (Coins/XP ขึ้น) → สุ่มไข่ + ใส่ทีม (สัตว์เดินตาม/ช่วยตี) → อัป Skill → ลองเปลี่ยนเผ่าด้วยปุ่ม Dev → Output ไม่มี error แดง
+
+> ใน place ที่ยังไม่ publish ข้อมูลจะไม่เซฟ (ปกติ) — ออกแล้วเข้าใหม่จะเริ่มจากศูนย์
+
+---
+
+## 4. เพิ่มระบบใหม่
 
 | อยากทำ | สร้างไฟล์ที่ |
 |---|---|
@@ -69,14 +91,14 @@ rojo serve                             # เปิดค้างไว้ระ
 | ค่าตัวเลข / ราคา | เพิ่มหมวดใน `src/shared/Config.luau` |
 | โมเดล / ฉากที่สร้างใน Studio | คลิกขวาโมเดล → **Save to File** เป็น `.rbxmx` → วางใน `assets/models/` |
 
-ดูตัวอย่างได้ที่ `ExampleClickService.luau` + `ExampleClickController.luau` (ลบทิ้งได้เมื่อเริ่มของจริง)
+ดูตัวอย่างได้จากระบบที่มีอยู่ เช่น `SkillService.luau` + `SkillController.luau` (service ฝั่ง server + หน้า UI ฝั่ง client)
 
 ### บอก AI ยังไงให้ได้งานดี
 > "เพิ่มระบบ Daily Reward ตามกติกาใน AGENTS.md — server เป็น Service ใหม่, UI เป็น Controller ใหม่, ตัวเลขอยู่ใน Config, รัน stylua/selene/rojo build ให้ผ่าน"
 
 ---
 
-## 4. Publish ขึ้น Roblox (คนดูแลเท่านั้น)
+## 5. Publish ขึ้น Roblox (คนดูแลเท่านั้น)
 1. `git checkout main && git pull` → `rojo build -o vibeblox-game.rbxlx`
 2. เปิดไฟล์ใน Studio (หรือใช้ `rojo serve` + Connect เข้า place ของเกมจริง)
 3. **File → Publish to Roblox**
@@ -84,7 +106,7 @@ rojo serve                             # เปิดค้างไว้ระ
 
 ---
 
-## 5. ปัญหาที่เจอบ่อย
+## 6. ปัญหาที่เจอบ่อย
 - **Rojo Connect ไม่ได้** → ลืมรัน `rojo serve` หรือรันผิดโฟลเดอร์
 - **`[PlayerData] ใช้ DataStore ไม่ได้`** → ปกติใน place ที่ยังไม่ publish (เล่นได้แต่ไม่เซฟ) — ถ้าอยากเทสเซฟ ต้อง publish place + เปิด *Game Settings → Security → Enable Studio Access to API Services*
 - **CI แดงเพราะ stylua** → รัน `stylua src` แล้ว commit ใหม่
