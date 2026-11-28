@@ -48,7 +48,7 @@ local VISUALS: { [string]: any } = {
 
 export type Enemy = {
 	kind: string,
-	worldIndex: number,
+	stageIndex: number,
 	isBoss: boolean,
 	model: Model,
 	root: BasePart,
@@ -75,7 +75,7 @@ export type Enemy = {
 }
 
 local EnemyService = {}
-local ProgressionService, WorldService, CombatService, SummonService
+local ProgressionService, StageService, CombatService, SummonService
 
 local enemies: { [Enemy]: true } = {}
 local folder: Folder
@@ -192,17 +192,17 @@ end
 
 local spawnMob, spawnBoss
 
-local function spawnEnemy(worldIndex: number, kind: string, position: Vector3, isBoss: boolean)
-	local world = Config.WORLDS[worldIndex]
+local function spawnEnemy(stageIndex: number, kind: string, position: Vector3, isBoss: boolean)
+	local stage = Config.STAGES[stageIndex]
 	local def = (Config.ENEMIES :: any)[kind]
-	local scale = if isBoss then 1 + (worldIndex - 1) * 0.2 else 1
+	local scale = 1
 	local size = VISUALS[kind].Size * scale
 	local groundY = position.Y + size.Y / 2
 	local home = flat(position, groundY)
 	local model, root, align, orient, fill = buildModel(kind, home, scale, isBoss)
 	local enemy: Enemy = {
 		kind = kind,
-		worldIndex = worldIndex,
+		stageIndex = stageIndex,
 		isBoss = isBoss,
 		model = model,
 		root = root,
@@ -212,9 +212,9 @@ local function spawnEnemy(worldIndex: number, kind: string, position: Vector3, i
 		size = size,
 		radius = math.max(size.X, size.Z) / 2,
 		groundY = groundY,
-		maxHealth = def.Health * world.StatMultiplier,
-		health = def.Health * world.StatMultiplier,
-		damage = def.Damage * world.StatMultiplier,
+		maxHealth = def.Health * stage.HealthMultiplier,
+		health = def.Health * stage.HealthMultiplier,
+		damage = def.Damage * stage.DamageMultiplier,
 		attackCooldown = def.AttackCooldown,
 		aggro = if isBoss then Config.BOSS_AGGRO_RANGE else Config.ENEMY_AGGRO_RANGE,
 		home = home,
@@ -235,15 +235,15 @@ local function spawnEnemy(worldIndex: number, kind: string, position: Vector3, i
 
 	if isBoss then
 		for _, player in Players:GetPlayers() do
-			if player:GetAttribute("CurrentWorld") == worldIndex then
+			if player:GetAttribute("CurrentStage") == stageIndex then
 				notifyEvent:FireClient(player, `{def.Name} ปรากฏตัวแล้ว!`, "Boss")
 			end
 		end
 	end
 end
 
-local function randomMobPosition(worldIndex: number): Vector3
-	local area = WorldService.getArea(worldIndex)
+local function randomMobPosition(stageIndex: number): Vector3
+	local area = StageService.getArea(stageIndex)
 	for _ = 1, 10 do
 		local angle = rng:NextNumber(0, math.pi * 2)
 		local radius = rng:NextNumber(area.minRadius, area.maxRadius)
@@ -255,14 +255,17 @@ local function randomMobPosition(worldIndex: number): Vector3
 	return area.origin + Vector3.new(area.minRadius, 0, 0)
 end
 
-function spawnMob(worldIndex: number)
-	local kinds = Config.WORLDS[worldIndex].Enemies
-	spawnEnemy(worldIndex, kinds[rng:NextInteger(1, #kinds)], randomMobPosition(worldIndex), false)
+function spawnMob(stageIndex: number)
+	local kinds = Config.STAGES[stageIndex].Enemies
+	spawnEnemy(stageIndex, kinds[rng:NextInteger(1, #kinds)], randomMobPosition(stageIndex), false)
 end
 
-function spawnBoss(worldIndex: number)
-	local area = WorldService.getArea(worldIndex)
-	spawnEnemy(worldIndex, Config.WORLDS[worldIndex].Boss, area.bossPosition, true)
+function spawnBoss(stageIndex: number)
+	local area = StageService.getArea(stageIndex)
+	local boss = Config.STAGES[stageIndex].Boss
+	if boss then
+		spawnEnemy(stageIndex, boss, area.bossPosition, true)
+	end
 end
 
 local function fadeAndDestroy(model: Model)
@@ -282,7 +285,7 @@ end
 local function kill(enemy: Enemy)
 	enemy.dead = true
 	enemies[enemy] = nil
-	local world = Config.WORLDS[enemy.worldIndex]
+	local stage = Config.STAGES[enemy.stageIndex]
 	local def = (Config.ENEMIES :: any)[enemy.kind]
 
 	local topPlayer: Player? = nil
@@ -291,13 +294,13 @@ local function kill(enemy: Enemy)
 		if player.Parent then
 			local share = math.min(dealt / enemy.maxHealth, 1)
 			local credited = share >= Config.KILL_CREDIT_MIN_SHARE
-			local coins = math.max(1, math.floor(def.Coins * world.RewardMultiplier * share + 0.5))
-			local xp = math.max(1, math.floor(def.XP * world.RewardMultiplier * share + 0.5))
+			local coins = math.max(1, math.floor(def.Coins * stage.RewardMultiplier * share + 0.5))
+			local xp = math.max(1, math.floor(def.XP * stage.RewardMultiplier * share + 0.5))
 			local gems = if enemy.isBoss and credited then Config.BOSS_GEMS else nil
 			ProgressionService.grant(player, { Coins = coins, XP = xp, Gems = gems })
 			SummonService.grantXP(player, xp * Config.SUMMON_XP_SHARE)
 			if credited then
-				WorldService.onEnemyKilled(player, enemy.worldIndex, enemy.isBoss)
+				StageService.onEnemyKilled(player, enemy.stageIndex, enemy.isBoss)
 			end
 			if gems then
 				notifyEvent:FireClient(player, `ชนะ {def.Name}! +{gems} Gems`, "Good")
@@ -314,9 +317,9 @@ local function kill(enemy: Enemy)
 
 	fadeAndDestroy(enemy.model)
 	if enemy.isBoss then
-		task.delay(Config.BOSS_RESPAWN_TIME, spawnBoss, enemy.worldIndex)
+		task.delay(Config.BOSS_RESPAWN_TIME, spawnBoss, enemy.stageIndex)
 	else
-		task.delay(Config.ENEMY_RESPAWN_TIME, spawnMob, enemy.worldIndex)
+		task.delay(Config.ENEMY_RESPAWN_TIME, spawnMob, enemy.stageIndex)
 	end
 end
 
@@ -456,7 +459,7 @@ end
 
 function EnemyService.Init(services)
 	ProgressionService = services.ProgressionService
-	WorldService = services.WorldService
+	StageService = services.StageService
 	CombatService = services.CombatService
 	SummonService = services.SummonService
 end
@@ -468,12 +471,12 @@ function EnemyService.Start()
 	folder.Name = "Enemies"
 	folder.Parent = workspace
 
-	WorldService.ensureBuilt()
-	for worldIndex, world in Config.WORLDS do
-		for _ = 1, world.MaxEnemies do
-			spawnMob(worldIndex)
+	StageService.ensureBuilt()
+	for stageIndex, stage in Config.STAGES do
+		for _ = 1, stage.MaxEnemies do
+			spawnMob(stageIndex)
 		end
-		spawnBoss(worldIndex)
+		spawnBoss(stageIndex)
 	end
 
 	while true do

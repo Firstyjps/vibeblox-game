@@ -19,15 +19,31 @@ Theme.RACE_COLORS = {
 	Fairy = Color3.fromRGB(255, 150, 230),
 } :: { [string]: Color3 }
 
-Theme.ROLE_LABELS = {
-	Tank = "🛡 แทงก์",
-	Assassin = "🗡 แอสซาซิน",
-	Mage = "✨ เวทย์",
+Theme.ELEMENT_COLORS = {
+	Fire = Color3.fromRGB(255, 110, 50),
+	Water = Color3.fromRGB(60, 150, 255),
+	Nature = Color3.fromRGB(90, 210, 90),
+	Light = Color3.fromRGB(255, 235, 130),
+	Shadow = Color3.fromRGB(120, 70, 170),
+} :: { [string]: Color3 }
+
+Theme.ELEMENT_LABELS = {
+	Fire = "🔥 Fire",
+	Water = "💧 Water",
+	Nature = "🌿 Nature",
+	Light = "✨ Light",
+	Shadow = "🌑 Shadow",
+} :: { [string]: string }
+
+Theme.ATTACK_TYPE_LABELS = {
+	Melee = "⚔️ ระยะใกล้",
+	Ranged = "🏹 ระยะไกล",
 } :: { [string]: string }
 
 Theme.COIN = Color3.fromRGB(255, 205, 60)
 Theme.GEM = Color3.fromRGB(80, 225, 255)
 Theme.XP = Color3.fromRGB(140, 255, 120)
+Theme.TOKEN = Color3.fromRGB(255, 120, 200)
 Theme.PANEL = Color3.fromRGB(30, 27, 52)
 Theme.PANEL_LIGHT = Color3.fromRGB(50, 45, 85)
 Theme.ACCENT = Color3.fromRGB(125, 95, 255)
@@ -40,6 +56,7 @@ Theme.TEXT_DIM = Color3.fromRGB(185, 180, 215)
 Theme.POP_COLORS = {
 	Player = Color3.fromRGB(255, 240, 120),
 	Summon = Color3.fromRGB(130, 220, 255),
+	Crit = Color3.fromRGB(255, 140, 40),
 	Hurt = Color3.fromRGB(255, 80, 80),
 	Heal = Color3.fromRGB(120, 255, 140),
 } :: { [string]: Color3 }

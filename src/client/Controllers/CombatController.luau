@@ -1,5 +1,5 @@
 --!strict
--- ปุ่มตี (มือถือ: ปุ่มกลางขวา · PC: คลิกซ้าย / ปุ่ม F ค้างได้), ตัวเลขดาเมจ, เส้นเอฟเฟกต์ตอนตี
+-- ปุ่มตี (ล่างกลางจอ · PC: คลิกซ้าย / ปุ่ม F ค้างได้), ตัวเลขดาเมจ, เอฟเฟกต์ตอนตี (ฟัน / ลูกพลัง)
 -- client แค่ "ขอตี" — server เป็นคนเลือกเป้าและเช็ก cooldown
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -84,6 +84,34 @@ local function showSlash(from: Vector3, to: Vector3, color: Color3)
 	end)
 end
 
+-- ลูกพลังของสัตว์ระยะไกล: ลอยจากตัวสัตว์ไปหามอน
+local function showBolt(from: Vector3, to: Vector3, color: Color3)
+	local camera = workspace.CurrentCamera
+	if camera and (camera.CFrame.Position - from).Magnitude > FX_MAX_DISTANCE then
+		return
+	end
+	local bolt = Instance.new("Part")
+	bolt.Shape = Enum.PartType.Ball
+	bolt.Anchored = true
+	bolt.CanCollide = false
+	bolt.CanQuery = false
+	bolt.CanTouch = false
+	bolt.CastShadow = false
+	bolt.Material = Enum.Material.Neon
+	bolt.Color = color
+	bolt.Size = Vector3.new(0.9, 0.9, 0.9)
+	bolt.Position = from
+	bolt.Parent = fxFolder
+	TweenService:Create(bolt, TweenInfo.new(0.2, Enum.EasingStyle.Linear), { Position = to }):Play()
+	task.delay(0.2, function()
+		TweenService
+			:Create(bolt, TweenInfo.new(0.12), { Transparency = 1, Size = Vector3.new(2.5, 2.5, 2.5) })
+			:Play()
+		task.wait(0.12)
+		bolt:Destroy()
+	end)
+end
+
 function CombatController.Start()
 	local attackRemote = Net.event("Attack")
 	fxFolder = Instance.new("Folder")
@@ -102,11 +130,11 @@ function CombatController.Start()
 		end
 	end
 
-	-- ปุ่มตีกลางขวา (เหนือปุ่มกระโดดบนมือถือ)
+	-- ปุ่มตีล่างกลางจอ (ระหว่างจอยสติ๊กกับปุ่มกระโดดบนมือถือ — ไม่ทับทั้งคู่)
 	local gui = Ui.screen("Combat", 1)
-	local button = Ui.button(gui, "⚔️ ตี", Theme.DANGER, UDim2.fromOffset(110, 110), request)
-	button.AnchorPoint = Vector2.new(1, 0.5)
-	button.Position = UDim2.new(1, -24, 0.55, 0)
+	local button = Ui.button(gui, "⚔️ ตี", Theme.DANGER, UDim2.fromOffset(100, 100), request)
+	button.AnchorPoint = Vector2.new(0.5, 1)
+	button.Position = UDim2.new(0.5, 0, 1, -16)
 	local corner = button:FindFirstChildOfClass("UICorner")
 	if corner then
 		corner.CornerRadius = UDim.new(0.5, 0)
@@ -154,11 +182,16 @@ function CombatController.Start()
 				showPop(position, amount, kind)
 			end
 		end)
-	Net.unreliable("AttackFx").OnClientEvent:Connect(function(from: unknown, to: unknown, color: unknown)
-		if typeof(from) == "Vector3" and typeof(to) == "Vector3" and typeof(color) == "Color3" then
-			showSlash(from, to, color)
-		end
-	end)
+	Net.unreliable("AttackFx").OnClientEvent
+		:Connect(function(from: unknown, to: unknown, color: unknown, style: unknown)
+			if typeof(from) == "Vector3" and typeof(to) == "Vector3" and typeof(color) == "Color3" then
+				if style == "Bolt" then
+					showBolt(from, to, color)
+				else
+					showSlash(from, to, color)
+				end
+			end
+		end)
 end
 
 return CombatController

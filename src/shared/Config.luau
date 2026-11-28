@@ -1,7 +1,7 @@
 --!strict
 -- ค่าตั้งของเกม (สมดุล/ราคา/อัตรา) — ปรับเกมที่นี่ ไม่ต้องแก้โค้ดระบบ
 -- แยกหมวดด้วย comment ตามระบบ เพื่อให้หลายคนแก้คนละส่วนได้
--- ภาพรวมเกมดู docs/GAME_DESIGN.md
+-- ภาพรวมเกมดู docs/GDD.md
 
 local Config = {}
 
@@ -9,7 +9,7 @@ local Config = {}
 Config.DATASTORE_NAME = "PlayerData_v1" -- เปลี่ยนเวอร์ชันเมื่อโครงสร้างข้อมูลเปลี่ยนแบบเข้ากันไม่ได้
 Config.AUTOSAVE_INTERVAL = 60
 Config.STARTING_COINS = 0
-Config.STARTING_GEMS = 100
+Config.STARTING_GEMS = 0
 
 -- ---------- Dev ----------
 -- UserId ที่ใช้ปุ่ม dev ได้ในเกมจริง (ใน Studio ใช้ได้ทุกคนอยู่แล้ว)
@@ -18,6 +18,9 @@ Config.DEV_USER_IDS = {} :: { number }
 -- ---------- เผ่า ----------
 -- Damage/Health = ตัวคูณ · Range = ระยะตี (studs) · AttackCooldown = วินาทีต่อการตี 1 ครั้ง
 -- Lifesteal = สัดส่วนดาเมจที่ดูดกลับเป็น HP
+-- Skills = สกิลเผ่า (ปลดที่ RACE_SKILL_UNLOCK_LEVEL) · Effect ดูรายการใน Formulas.playerStats
+--   Damage/AttackSpeed/DamageReduction/CritChance/CoinBonus/Lifesteal = สัดส่วน (0.1 = 10%)
+--   Range/WalkSpeed = ค่าบวกตรงๆ
 Config.RACE_ORDER = { "Elf", "Dragon", "Vampire", "Lich", "Fairy" }
 Config.RACES = {
 	Elf = {
@@ -29,6 +32,22 @@ Config.RACES = {
 		AttackCooldown = 0.45,
 		WalkSpeed = 18,
 		Lifesteal = 0,
+		Skills = {
+			{
+				Id = "EagleEye",
+				Name = "Eagle Eye",
+				Description = "ระยะตี +2",
+				Effect = "Range",
+				PerRank = 2,
+			},
+			{
+				Id = "NaturesGrace",
+				Name = "Nature's Grace",
+				Description = "ตีเร็วขึ้น 8%",
+				Effect = "AttackSpeed",
+				PerRank = 0.08,
+			},
+		},
 	},
 	Dragon = {
 		Name = "Dragon",
@@ -39,6 +58,22 @@ Config.RACES = {
 		AttackCooldown = 0.5,
 		WalkSpeed = 16,
 		Lifesteal = 0,
+		Skills = {
+			{
+				Id = "DragonScales",
+				Name = "Dragon Scales",
+				Description = "โดนดาเมจน้อยลง 5%",
+				Effect = "DamageReduction",
+				PerRank = 0.05,
+			},
+			{
+				Id = "DragonMight",
+				Name = "Dragon Might",
+				Description = "ดาเมจ +8%",
+				Effect = "Damage",
+				PerRank = 0.08,
+			},
+		},
 	},
 	Vampire = {
 		Name = "Vampire",
@@ -49,6 +84,22 @@ Config.RACES = {
 		AttackCooldown = 0.45,
 		WalkSpeed = 17,
 		Lifesteal = 0.12,
+		Skills = {
+			{
+				Id = "BloodThirst",
+				Name = "Blood Thirst",
+				Description = "ดูดเลือด +4%",
+				Effect = "Lifesteal",
+				PerRank = 0.04,
+			},
+			{
+				Id = "CrimsonStrike",
+				Name = "Crimson Strike",
+				Description = "โอกาสคริติคอล +6%",
+				Effect = "CritChance",
+				PerRank = 0.06,
+			},
+		},
 	},
 	Lich = {
 		Name = "Lich",
@@ -59,6 +110,22 @@ Config.RACES = {
 		AttackCooldown = 0.5,
 		WalkSpeed = 16,
 		Lifesteal = 0,
+		Skills = {
+			{
+				Id = "ArcanePower",
+				Name = "Arcane Power",
+				Description = "ดาเมจ +10%",
+				Effect = "Damage",
+				PerRank = 0.1,
+			},
+			{
+				Id = "BoneWard",
+				Name = "Bone Ward",
+				Description = "โดนดาเมจน้อยลง 5%",
+				Effect = "DamageReduction",
+				PerRank = 0.05,
+			},
+		},
 	},
 	Fairy = {
 		Name = "Fairy",
@@ -69,6 +136,22 @@ Config.RACES = {
 		AttackCooldown = 0.32,
 		WalkSpeed = 24,
 		Lifesteal = 0,
+		Skills = {
+			{
+				Id = "PixieDust",
+				Name = "Pixie Dust",
+				Description = "ได้ Coins +10%",
+				Effect = "CoinBonus",
+				PerRank = 0.1,
+			},
+			{
+				Id = "Flutter",
+				Name = "Flutter",
+				Description = "เดินเร็ว +1.5",
+				Effect = "WalkSpeed",
+				PerRank = 1.5,
+			},
+		},
 	},
 }
 
@@ -76,147 +159,200 @@ Config.RACES = {
 Config.BASE_DAMAGE = 10
 Config.BASE_HEALTH = 100
 Config.DAMAGE_VARIANCE = 0.1 -- ดาเมจสุ่ม ±10%
+Config.CRIT_MULTIPLIER = 2
+Config.MAX_DAMAGE_REDUCTION = 0.6
+Config.MAX_CRIT_CHANCE = 0.75
 Config.ATTACK_REQUESTS_PER_SECOND = 12 -- กันสแปม remote (cooldown จริงดูที่เผ่า)
 
 -- ---------- เลเวล ----------
 Config.MAX_LEVEL = 200
-Config.XP_BASE = 20 -- XP ที่ต้องใช้ = XP_BASE * level ^ XP_EXPONENT
-Config.XP_EXPONENT = 1.5
-Config.LEVEL_DAMAGE_BONUS = 0.08 -- +8% ดาเมจต่อเลเวล
-Config.LEVEL_HEALTH_BONUS = 0.06 -- +6% HP ต่อเลเวล
+Config.XP_BASE = 15 -- XP ที่ต้องใช้ = XP_BASE * level ^ XP_EXPONENT
+Config.XP_EXPONENT = 1.4
 
--- ---------- อัปเกรดด้วย Coins ----------
--- ราคา = BaseCost * CostGrowth ^ จำนวนที่ซื้อแล้ว · Step = โบนัสต่อขั้น (0.15 = +15%)
-Config.UPGRADES = {
-	Damage = { Name = "ดาเมจ", BaseCost = 40, CostGrowth = 1.35, Step = 0.15, Max = 100 },
-	Health = { Name = "HP", BaseCost = 40, CostGrowth = 1.35, Step = 0.15, Max = 100 },
+-- ---------- Skill Tree ----------
+Config.SKILL_POINTS_PER_LEVEL = 3
+Config.STAT_ORDER = { "Health", "Attack", "Speed" }
+-- PerPoint: Health/Attack = สัดส่วน (0.05 = +5%) · Speed = ความเร็วเพิ่มตรงๆ · Max = ใส่ได้สูงสุดกี่ point
+Config.STATS = {
+	Health = { Name = "HP", Description = "+5% HP", PerPoint = 0.05, Max = 300 },
+	Attack = {
+		Name = "พลังโจมตี",
+		Description = "+5% ดาเมจ",
+		PerPoint = 0.05,
+		Max = 300,
+	},
+	Speed = {
+		Name = "ความเร็ว",
+		Description = "+0.4 ความเร็วเดิน",
+		PerPoint = 0.4,
+		Max = 25,
+	},
 }
+Config.RACE_SKILL_UNLOCK_LEVEL = 10
+Config.RACE_SKILL_COST = 3 -- points ต่อขั้น
+Config.RACE_SKILL_MAX_RANK = 5
 
 -- ---------- Rebirth ----------
-Config.REBIRTH_MIN_LEVEL = 15
-Config.REBIRTH_BONUS = 0.25 -- +25% Coins/XP ถาวรต่อครั้ง
+-- ต้องล้มบอสโลก 1 + มี Coins ≥ ราคา (ราคา = BASE_COST * COST_GROWTH ^ จำนวนครั้งที่ rebirth แล้ว)
+Config.REBIRTH_BASE_COST = 5000
+Config.REBIRTH_COST_GROWTH = 2.5
+Config.REBIRTH_BONUS = 0.5 -- +50% Coins/พลังถาวรต่อครั้ง
+Config.REBIRTH_TOKENS = 1
 
 -- ---------- มอน ----------
--- ค่าพื้นฐาน (โลกที่ 1) — โลกถัดไปคูณด้วย StatMultiplier / RewardMultiplier ของโลกนั้น
+-- ค่าพื้นฐาน — แต่ละด่านคูณด้วย HealthMultiplier / DamageMultiplier / RewardMultiplier ของด่านนั้น
 Config.ENEMIES = {
-	Slime = {
-		Name = "Slime",
-		Health = 40,
-		Damage = 4,
-		AttackCooldown = 1.2,
-		Speed = 8,
-		Coins = 5,
-		XP = 6,
-		IsBoss = false,
-	},
+	Slime = { Name = "Slime", Health = 35, Damage = 4, AttackCooldown = 1.2, Speed = 8, Coins = 5, XP = 12 },
 	Wolf = {
 		Name = "Shadow Wolf",
-		Health = 70,
-		Damage = 7,
+		Health = 55,
+		Damage = 6,
 		AttackCooldown = 1,
 		Speed = 14,
 		Coins = 8,
-		XP = 10,
-		IsBoss = false,
+		XP = 18,
 	},
 	Imp = {
 		Name = "Fire Imp",
 		Health = 60,
-		Damage = 9,
+		Damage = 8,
 		AttackCooldown = 1.1,
 		Speed = 12,
-		Coins = 9,
-		XP = 12,
-		IsBoss = false,
+		Coins = 10,
+		XP = 24,
 	},
 	Golem = {
 		Name = "Ancient Golem",
-		Health = 1200,
-		Damage = 22,
+		Health = 900,
+		Damage = 18,
 		AttackCooldown = 1.8,
 		Speed = 7,
-		Coins = 250,
-		XP = 300,
-		IsBoss = true,
+		Coins = 400,
+		XP = 600,
 	},
 }
 Config.ENEMY_AGGRO_RANGE = 28
 Config.BOSS_AGGRO_RANGE = 40
 Config.ENEMY_LEASH_RANGE = 70 -- ไล่ไกลจากจุดเกิดเกินนี้ → กลับบ้าน + ฟื้น HP
 Config.ENEMY_ATTACK_REACH = 4 -- ระยะตี (บวกขนาดตัวมอน)
-Config.ENEMY_RESPAWN_TIME = 4
-Config.BOSS_RESPAWN_TIME = 60
-Config.MOB_GEM_CHANCE = 0.05 -- โอกาสดรอป 1 Gem (ให้คนที่ตีแรงสุด)
-Config.BOSS_GEMS = 15
-Config.KILL_CREDIT_MIN_SHARE = 0.1 -- ต้องทำดาเมจ ≥ 10% ถึงนับภารกิจ
+Config.ENEMY_RESPAWN_TIME = 3
+Config.BOSS_RESPAWN_TIME = 45
+Config.BOSS_GEMS = 25
+Config.MOB_GEM_CHANCE = 0.02 -- โอกาสดรอป 1 Gem (ให้คนที่ตีแรงสุด)
+Config.KILL_CREDIT_MIN_SHARE = 0.1 -- ต้องทำดาเมจ ≥ 10% ถึงนับความคืบหน้าด่าน
 
--- ---------- โลก ----------
--- ลำดับในตาราง = ลำดับโลก · UnlockCost = Coins ที่ต้องจ่ายตอนเปิด (ต้องทำภารกิจโลกก่อนหน้าก่อน)
-Config.WORLDS = {
+-- ---------- Stage (โลก 1) ----------
+-- ด่าน 1–4: ฆ่ามอนครบ KillsToClear → ปลดด่านถัดไป · ด่านที่มี Boss: ล้มบอส = เคลียร์โลก
+Config.WORLD_NAME = "Enchanted Forest"
+Config.STAGES = {
 	{
-		Name = "Enchanted Forest",
-		Enemies = { "Slime", "Wolf" },
-		Boss = "Golem",
-		StatMultiplier = 1,
+		Name = "Meadow",
+		Enemies = { "Slime" },
+		HealthMultiplier = 1,
+		DamageMultiplier = 1,
 		RewardMultiplier = 1,
-		MaxEnemies = 12,
-		QuestKills = 25,
-		QuestGems = 50,
-		UnlockCost = 0,
+		MaxEnemies = 10,
+		KillsToClear = 15,
 	},
 	{
-		Name = "Inferno",
-		Enemies = { "Imp", "Wolf" },
+		Name = "Deep Woods",
+		Enemies = { "Slime", "Wolf" },
+		HealthMultiplier = 2,
+		DamageMultiplier = 1.5,
+		RewardMultiplier = 2,
+		MaxEnemies = 10,
+		KillsToClear = 20,
+	},
+	{
+		Name = "Wolf Den",
+		Enemies = { "Wolf" },
+		HealthMultiplier = 3.5,
+		DamageMultiplier = 2,
+		RewardMultiplier = 3.5,
+		MaxEnemies = 10,
+		KillsToClear = 25,
+	},
+	{
+		Name = "Ember Grove",
+		Enemies = { "Wolf", "Imp" },
+		HealthMultiplier = 6,
+		DamageMultiplier = 3,
+		RewardMultiplier = 6,
+		MaxEnemies = 10,
+		KillsToClear = 30,
+	},
+	{
+		Name = "Golem Throne",
+		Enemies = { "Imp" },
 		Boss = "Golem",
-		StatMultiplier = 6,
-		RewardMultiplier = 4,
-		MaxEnemies = 12,
-		QuestKills = 40,
-		QuestGems = 100,
-		UnlockCost = 2500,
+		HealthMultiplier = 10,
+		DamageMultiplier = 4,
+		RewardMultiplier = 10,
+		MaxEnemies = 4,
 	},
 }
 
--- ---------- Summon ----------
-Config.SUMMON_COST_GEMS = 50
+-- ---------- Summon (สัตว์เวท) ----------
 Config.MAX_EQUIPPED = 3
-Config.MAX_SUMMONS = 60 -- เก็บได้สูงสุดกี่ตัว
-Config.SUMMON_RANGE = 26 -- รัศมีรอบตัวผู้เล่นที่ summon จะไปตีให้
-Config.SUMMON_XP_SHARE = 0.5 -- summon ในทีมได้ XP = XP มอน * ค่านี้
+Config.MAX_SUMMONS = 50 -- กระเป๋าเก็บได้สูงสุด
+Config.SUMMON_RANGE = 26 -- รัศมีรอบตัวผู้เล่นที่สัตว์จะไปตีให้
+Config.SUMMON_XP_SHARE = 0.5 -- สัตว์ในทีมได้ XP = XP มอน * ค่านี้
 Config.SUMMON_XP_BASE = 15
 Config.SUMMON_XP_EXPONENT = 1.4
-Config.SUMMON_LEVEL_BONUS = 0.1 -- +10% ดาเมจต่อเลเวล
-Config.SUMMON_MAX_LEVEL = 100
-Config.TANK_REDUCTION_CAP = 0.5
+Config.SUMMON_LEVEL_BONUS = 0.1 -- +10% พลังต่อเลเวล
 
+Config.ELEMENT_ORDER = { "Fire", "Water", "Nature", "Light", "Shadow" }
 Config.RARITY_ORDER = { "Common", "Rare", "Epic", "Legendary", "Mythic" }
+-- MaxLevel = เลเวลตันของสัตว์ระดับนั้น
 Config.RARITIES = {
-	Common = { Weight = 60, Multiplier = 1, TankReduction = 0.05 },
-	Rare = { Weight = 25, Multiplier = 1.6, TankReduction = 0.08 },
-	Epic = { Weight = 10, Multiplier = 2.6, TankReduction = 0.12 },
-	Legendary = { Weight = 4, Multiplier = 4.2, TankReduction = 0.16 },
-	Mythic = { Weight = 1, Multiplier = 7, TankReduction = 0.22 },
+	Common = { Multiplier = 1, MaxLevel = 20 },
+	Rare = { Multiplier = 1.6, MaxLevel = 30 },
+	Epic = { Multiplier = 2.6, MaxLevel = 40 },
+	Legendary = { Multiplier = 4.2, MaxLevel = 50 },
+	Mythic = { Multiplier = 7, MaxLevel = 60 },
 }
 
--- SplashRadius > 0 = ตีเป็นวง
-Config.ROLES = {
-	Tank = { Damage = 4, AttackCooldown = 1.2, Speed = 18, SplashRadius = 0 },
-	Assassin = { Damage = 9, AttackCooldown = 0.7, Speed = 26, SplashRadius = 0 },
-	Mage = { Damage = 5, AttackCooldown = 1.5, Speed = 20, SplashRadius = 9 },
+-- ระยะใกล้: วิ่งเข้าไปตี · ระยะไกล: ยืนห่างแล้วยิง (Reach = ระยะที่ตีถึง)
+Config.ATTACK_TYPES = {
+	Melee = { Name = "ระยะใกล้", Damage = 8, AttackCooldown = 1, Speed = 24, Reach = 3 },
+	Ranged = { Name = "ระยะไกล", Damage = 6, AttackCooldown = 1.2, Speed = 20, Reach = 18 },
 }
 
--- ตู้สุ่ม: สุ่มระดับก่อน (ตาม Weight) แล้วสุ่มตัวในระดับนั้น — ทุกระดับต้องมีอย่างน้อย 1 ตัว
 Config.SUMMONS = {
-	MossGolem = { Name = "Moss Golem", Role = "Tank", Rarity = "Common" },
-	ShadowRat = { Name = "Shadow Rat", Role = "Assassin", Rarity = "Common" },
-	Wisp = { Name = "Wisp", Role = "Mage", Rarity = "Common" },
-	StoneGuardian = { Name = "Stone Guardian", Role = "Tank", Rarity = "Rare" },
-	NightFox = { Name = "Night Fox", Role = "Assassin", Rarity = "Rare" },
-	EmberSprite = { Name = "Ember Sprite", Role = "Mage", Rarity = "Rare" },
-	CrystalTortoise = { Name = "Crystal Tortoise", Role = "Tank", Rarity = "Epic" },
-	PhantomBlade = { Name = "Phantom Blade", Role = "Assassin", Rarity = "Epic" },
-	StormPhoenix = { Name = "Storm Phoenix", Role = "Mage", Rarity = "Legendary" },
-	CelestialKirin = { Name = "Celestial Kirin", Role = "Assassin", Rarity = "Mythic" },
+	LeafFox = { Name = "Leaf Fox", Element = "Nature", AttackType = "Melee", Rarity = "Common" },
+	BubbleNewt = { Name = "Bubble Newt", Element = "Water", AttackType = "Ranged", Rarity = "Common" },
+	EmberPup = { Name = "Ember Pup", Element = "Fire", AttackType = "Melee", Rarity = "Common" },
+	TideSerpent = { Name = "Tide Serpent", Element = "Water", AttackType = "Melee", Rarity = "Rare" },
+	ShadowBat = { Name = "Shadow Bat", Element = "Shadow", AttackType = "Ranged", Rarity = "Rare" },
+	ThornBoar = { Name = "Thorn Boar", Element = "Nature", AttackType = "Melee", Rarity = "Rare" },
+	FlameLynx = { Name = "Flame Lynx", Element = "Fire", AttackType = "Melee", Rarity = "Epic" },
+	MoonOwl = { Name = "Moon Owl", Element = "Light", AttackType = "Ranged", Rarity = "Epic" },
+	StormGriffin = { Name = "Storm Griffin", Element = "Light", AttackType = "Ranged", Rarity = "Legendary" },
+	AbyssKirin = { Name = "Abyss Kirin", Element = "Shadow", AttackType = "Melee", Rarity = "Mythic" },
 }
+
+-- ไข่: 1 ใบต่อ 1 โลก · Rates = % ของแต่ละระดับ (รวมกันควรได้ 100) · Creatures = ตัวที่ออกได้
+-- สุ่มระดับก่อน แล้วสุ่มตัวในระดับนั้น — ทุกระดับใน Rates ต้องมีตัวใน Creatures อย่างน้อย 1 ตัว
+Config.EGG_ORDER = { "Forest" }
+Config.EGGS = {
+	Forest = {
+		Name = "Forest Egg",
+		Price = 100,
+		Rates = { Common = 70, Rare = 22, Epic = 6.5, Legendary = 1.4, Mythic = 0.1 },
+		Creatures = {
+			"LeafFox",
+			"BubbleNewt",
+			"EmberPup",
+			"TideSerpent",
+			"ShadowBat",
+			"ThornBoar",
+			"FlameLynx",
+			"MoonOwl",
+			"StormGriffin",
+			"AbyssKirin",
+		},
+	},
+}
+Config.ROLL_COUNTS = { 1, 3 } -- สุ่ม 1 / สุ่ม 3
 
 return Config

@@ -1,6 +1,6 @@
 --!strict
 -- ตัวช่วยสร้าง UI ฝั่ง client: ScreenGui พร้อม UIScale (ย่อตามจอ), ปุ่ม, panel, เมนูข้าง
--- เมนูข้างอยู่กลางซ้าย และ panel อยู่กลางจอ → ไม่ทับจอยสติ๊ก (ซ้ายล่าง) / ปุ่มกระโดด (ขวาล่าง)
+-- เมนูข้างอยู่ขวากลางจอ และ panel อยู่กลางจอ → ไม่ทับจอยสติ๊ก (ซ้ายล่าง) / ปุ่มกระโดด (ขวาล่าง)
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -169,7 +169,7 @@ function Ui.panel(title: string, size: Vector2): Panel
 	return panel
 end
 
--- ---------- เมนูข้าง (กลางซ้าย) ----------
+-- ---------- เมนูข้าง (ขวากลางจอ) ----------
 local sideList: Frame? = nil
 
 function Ui.sideButton(text: string, order: number, color: Color3, onClick: () -> ()): TextButton
@@ -178,9 +178,9 @@ function Ui.sideButton(text: string, order: number, color: Color3, onClick: () -
 		local list = Instance.new("Frame")
 		list.Name = "List"
 		list.BackgroundTransparency = 1
-		list.AnchorPoint = Vector2.new(0, 0.5)
-		list.Position = UDim2.new(0, 12, 0.48, 0)
-		list.Size = UDim2.fromOffset(120, 300)
+		list.AnchorPoint = Vector2.new(1, 0.5)
+		list.Position = UDim2.new(1, -12, 0.45, 0)
+		list.Size = UDim2.fromOffset(120, 360)
 		list.Parent = gui
 		local layout = Instance.new("UIListLayout")
 		layout.Padding = UDim.new(0, 8)

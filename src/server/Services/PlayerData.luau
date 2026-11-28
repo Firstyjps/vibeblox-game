@@ -17,51 +17,62 @@ export type SummonEntry = { Kind: string, Level: number, XP: number }
 export type Data = {
 	Coins: number,
 	Gems: number,
+	RebirthTokens: number,
 	Race: string, -- "" = ยังไม่เลือก
 	Level: number,
 	XP: number,
+	SkillPoints: number, -- point ที่ยังไม่ได้ใช้
+	StatHealth: number,
+	StatAttack: number,
+	StatSpeed: number,
+	RaceSkills: { [string]: number }, -- id สกิลเผ่า → ขั้น
 	Rebirths: number,
-	DamageUpgrades: number,
-	HealthUpgrades: number,
-	WorldUnlocked: number, -- โลกไกลสุดที่เปิดแล้ว (ภารกิจนับเฉพาะโลกนี้)
-	QuestKills: number,
-	QuestBoss: boolean,
-	Summons: { [string]: SummonEntry }, -- id → summon
-	Equipped: { string }, -- id ของ summon ที่ใส่ทีม
+	StageUnlocked: number, -- ด่านไกลสุดที่เปิดแล้ว (นับความคืบหน้าเฉพาะด่านนี้)
+	StageKills: number,
+	BossDefeated: boolean, -- ล้มบอสโลก 1 แล้ว (เงื่อนไข Rebirth)
+	Summons: { [string]: SummonEntry }, -- id → สัตว์
+	Equipped: { string }, -- id ของสัตว์ที่ใส่ทีม
 	NextSummonId: number,
 }
 
 local DEFAULT: Data = {
 	Coins = Config.STARTING_COINS,
 	Gems = Config.STARTING_GEMS,
+	RebirthTokens = 0,
 	Race = "",
 	Level = 1,
 	XP = 0,
+	SkillPoints = 0,
+	StatHealth = 0,
+	StatAttack = 0,
+	StatSpeed = 0,
+	RaceSkills = {},
 	Rebirths = 0,
-	DamageUpgrades = 0,
-	HealthUpgrades = 0,
-	WorldUnlocked = 1,
-	QuestKills = 0,
-	QuestBoss = false,
+	StageUnlocked = 1,
+	StageKills = 0,
+	BossDefeated = false,
 	Summons = {},
 	Equipped = {},
 	NextSummonId = 1,
 }
 
 -- ค่าที่ส่งให้ client ผ่าน player Attribute (อ่านใน client ด้วย player:GetAttribute("Coins"))
--- (Summons/Equipped เป็นตาราง → SummonService ส่งเองเป็น JSON)
+-- (ตาราง Summons/Equipped/RaceSkills → SummonService/SkillService ส่งเองเป็น JSON)
 local REPLICATED_FIELDS = {
 	"Coins",
 	"Gems",
+	"RebirthTokens",
 	"Race",
 	"Level",
 	"XP",
+	"SkillPoints",
+	"StatHealth",
+	"StatAttack",
+	"StatSpeed",
 	"Rebirths",
-	"DamageUpgrades",
-	"HealthUpgrades",
-	"WorldUnlocked",
-	"QuestKills",
-	"QuestBoss",
+	"StageUnlocked",
+	"StageKills",
+	"BossDefeated",
 }
 local LEADERSTATS = { "Level", "Rebirths", "Coins" }
 

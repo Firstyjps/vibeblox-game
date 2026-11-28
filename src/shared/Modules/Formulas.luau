@@ -15,6 +15,7 @@ local NO_RACE = {
 	AttackCooldown = 0.45,
 	WalkSpeed = 16,
 	Lifesteal = 0,
+	Skills = {} :: { any },
 }
 
 function Formulas.race(raceId: string?): typeof(NO_RACE)
@@ -26,27 +27,67 @@ function Formulas.xpToNext(level: number): number
 	return math.floor(Config.XP_BASE * level ^ Config.XP_EXPONENT)
 end
 
+-- ตัวคูณ Coins/พลังจาก Rebirth
 function Formulas.rebirthMultiplier(rebirths: number): number
 	return 1 + rebirths * Config.REBIRTH_BONUS
 end
 
-function Formulas.playerDamage(data: any): number
-	local race = Formulas.race(data.Race)
-	local levelBonus = 1 + (data.Level - 1) * Config.LEVEL_DAMAGE_BONUS
-	local upgradeBonus = 1 + data.DamageUpgrades * Config.UPGRADES.Damage.Step
-	return Config.BASE_DAMAGE * race.Damage * levelBonus * upgradeBonus
+function Formulas.rebirthCost(rebirths: number): number
+	return math.floor(Config.REBIRTH_BASE_COST * Config.REBIRTH_COST_GROWTH ^ rebirths)
 end
 
-function Formulas.playerMaxHealth(data: any): number
-	local race = Formulas.race(data.Race)
-	local levelBonus = 1 + (data.Level - 1) * Config.LEVEL_HEALTH_BONUS
-	local upgradeBonus = 1 + data.HealthUpgrades * Config.UPGRADES.Health.Step
-	return math.floor(Config.BASE_HEALTH * race.Health * levelBonus * upgradeBonus)
-end
+export type PlayerStats = {
+	Damage: number,
+	MaxHealth: number,
+	WalkSpeed: number,
+	Range: number,
+	AttackCooldown: number,
+	Lifesteal: number,
+	DamageReduction: number,
+	CritChance: number,
+	CoinBonus: number,
+}
 
-function Formulas.upgradeCost(kind: string, owned: number): number
-	local def = (Config.UPGRADES :: any)[kind]
-	return math.floor(def.BaseCost * def.CostGrowth ^ owned)
+-- รวมค่าพลังผู้เล่นทั้งหมด: เผ่า + Skill Points + สกิลเผ่า + Rebirth
+-- data ต้องมี Race, Rebirths, StatHealth, StatAttack, StatSpeed, RaceSkills
+function Formulas.playerStats(data: any): PlayerStats
+	local race = Formulas.race(data.Race)
+	local bonus = {
+		Damage = 0,
+		AttackSpeed = 0,
+		DamageReduction = 0,
+		CritChance = 0,
+		CoinBonus = 0,
+		Lifesteal = 0,
+		Range = 0,
+		WalkSpeed = 0,
+	}
+	local ranks = data.RaceSkills or {}
+	for _, skill in race.Skills do
+		local rank = ranks[skill.Id]
+		if type(rank) == "number" and (bonus :: any)[skill.Effect] ~= nil then
+			(bonus :: any)[skill.Effect] += rank * skill.PerRank
+		end
+	end
+	local stats = Config.STATS
+	local speedPoints = math.min(data.StatSpeed, stats.Speed.Max)
+	return {
+		Damage = Config.BASE_DAMAGE
+			* race.Damage
+			* (1 + data.StatAttack * stats.Attack.PerPoint)
+			* (1 + bonus.Damage)
+			* Formulas.rebirthMultiplier(data.Rebirths),
+		MaxHealth = math.floor(
+			Config.BASE_HEALTH * race.Health * (1 + data.StatHealth * stats.Health.PerPoint)
+		),
+		WalkSpeed = race.WalkSpeed + speedPoints * stats.Speed.PerPoint + bonus.WalkSpeed,
+		Range = race.Range + bonus.Range,
+		AttackCooldown = race.AttackCooldown / (1 + bonus.AttackSpeed),
+		Lifesteal = race.Lifesteal + bonus.Lifesteal,
+		DamageReduction = math.min(bonus.DamageReduction, Config.MAX_DAMAGE_REDUCTION),
+		CritChance = math.min(bonus.CritChance, Config.MAX_CRIT_CHANCE),
+		CoinBonus = bonus.CoinBonus,
+	}
 end
 
 function Formulas.summonXpToNext(level: number): number
@@ -55,31 +96,34 @@ end
 
 export type SummonStats = {
 	Name: string,
-	Role: string,
+	Element: string,
+	AttackType: string,
 	Rarity: string,
+	MaxLevel: number,
 	Damage: number,
 	AttackCooldown: number,
 	Speed: number,
-	SplashRadius: number,
-	TankReduction: number,
+	Reach: number,
 }
 
+-- พลังสัตว์ 1 ตัว (ยังไม่คูณ Rebirth ของเจ้าของ)
 function Formulas.summonStats(kind: string, level: number): SummonStats?
 	local def = (Config.SUMMONS :: any)[kind]
 	if not def then
 		return nil
 	end
-	local role = (Config.ROLES :: any)[def.Role]
+	local attack = (Config.ATTACK_TYPES :: any)[def.AttackType]
 	local rarity = (Config.RARITIES :: any)[def.Rarity]
 	return {
 		Name = def.Name,
-		Role = def.Role,
+		Element = def.Element,
+		AttackType = def.AttackType,
 		Rarity = def.Rarity,
-		Damage = role.Damage * rarity.Multiplier * (1 + (level - 1) * Config.SUMMON_LEVEL_BONUS),
-		AttackCooldown = role.AttackCooldown,
-		Speed = role.Speed,
-		SplashRadius = role.SplashRadius,
-		TankReduction = if def.Role == "Tank" then rarity.TankReduction else 0,
+		MaxLevel = rarity.MaxLevel,
+		Damage = attack.Damage * rarity.Multiplier * (1 + (level - 1) * Config.SUMMON_LEVEL_BONUS),
+		AttackCooldown = attack.AttackCooldown,
+		Speed = attack.Speed,
+		Reach = attack.Reach,
 	}
 end
 

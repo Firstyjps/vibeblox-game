@@ -1,6 +1,6 @@
 --!strict
 -- เผ่า: เลือกครั้งแรก (ครั้งเดียว), ปุ่ม dev เปลี่ยนเผ่าได้อิสระ, ใส่ค่าพลัง (HP/ความเร็ว) ให้ตัวละคร
--- ค่าพลังคำนวณใหม่เองทุกครั้งที่ Race/Level/HealthUpgrades เปลี่ยน
+-- ค่าพลังคำนวณใหม่เองทุกครั้งที่เผ่า/เลเวล/skill เปลี่ยน (ร่างกายตามเผ่าอยู่ที่ RaceLookService)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,10 +12,10 @@ local Formulas = require(ReplicatedStorage.Shared.Modules.Formulas)
 local RateLimit = require(ReplicatedStorage.Shared.Modules.RateLimit)
 local Theme = require(ReplicatedStorage.Shared.Modules.Theme)
 
-local STAT_FIELDS = { "Race", "Level", "HealthUpgrades" }
+local STAT_FIELDS = { "Race", "Level", "StatHealth", "StatSpeed", "RaceSkillsJson" }
 
 local RaceService = {}
-local PlayerData
+local PlayerData, SkillService
 
 local function isDev(player: Player): boolean
 	return RunService:IsStudio() or table.find(Config.DEV_USER_IDS, player.UserId) ~= nil
@@ -64,23 +64,28 @@ function RaceService.applyStats(player: Player)
 	if not humanoid or humanoid.Health <= 0 then
 		return
 	end
-	local maxHealth = Formulas.playerMaxHealth(data)
+	local stats = Formulas.playerStats(data)
 	local ratio = humanoid.Health / math.max(humanoid.MaxHealth, 1)
-	humanoid.MaxHealth = maxHealth
-	humanoid.Health = math.clamp(maxHealth * ratio, 1, maxHealth)
-	humanoid.WalkSpeed = Formulas.race(data.Race).WalkSpeed
+	humanoid.MaxHealth = stats.MaxHealth
+	humanoid.Health = math.clamp(stats.MaxHealth * ratio, 1, stats.MaxHealth)
+	humanoid.WalkSpeed = stats.WalkSpeed
 	updateTag(character, data)
 end
 
 local function setRace(player: Player, race: string)
-	PlayerData.update(player, function(data)
-		data.Race = race
+	local data = PlayerData.get(player)
+	if data and data.Race ~= "" and data.Race ~= race then
+		SkillService.refundRaceSkills(player) -- สกิลเผ่าเดิมใช้ไม่ได้แล้ว คืน point
+	end
+	PlayerData.update(player, function(d)
+		d.Race = race
 	end)
 	Net.event("Notify"):FireClient(player, `คุณคือเผ่า {race} แล้ว!`, "Good")
 end
 
 function RaceService.Init(services)
 	PlayerData = services.PlayerData
+	SkillService = services.SkillService
 end
 
 function RaceService.Start()

@@ -1,5 +1,6 @@
 --!strict
--- Summon: สุ่มด้วย Gems, ใส่/ถอดทีม, ได้ XP/เลเวล, ตัว summon เดินตามและตีมอนรอบตัวเจ้าของ
+-- สัตว์เวท (Summon): สุ่มไข่ด้วย Coins (สุ่ม 1 / 3), ใส่/ถอดทีม, ปล่อยสัตว์, EXP/เลเวล (ตันตามความหายาก)
+-- ตัวสัตว์เดินตามเจ้าของและตีมอนรอบตัว: ระยะใกล้วิ่งเข้าไปตี · ระยะไกลยืนห่างแล้วยิง
 -- ส่งข้อมูลให้ UI ผ่าน Attribute "SummonsJson" / "EquippedJson"
 
 local HttpService = game:GetService("HttpService")
@@ -14,14 +15,12 @@ local Theme = require(ReplicatedStorage.Shared.Modules.Theme)
 
 local TICK = 0.1
 local TELEPORT_DISTANCE = 80
-local MELEE_REACH = 3
-local MAGE_REACH = 12
+local MAX_ID_LENGTH = 16
 
--- หน้าตาชั่วคราวตามสาย
+-- หน้าตาชั่วคราวตามระยะโจมตี (สีตามธาตุ, ป้ายชื่อสีตามความหายาก)
 local VISUALS: { [string]: any } = {
-	Tank = { Size = Vector3.new(3, 3, 3), Shape = Enum.PartType.Block, Hover = 0 },
-	Assassin = { Size = Vector3.new(1.6, 2.6, 1.6), Shape = Enum.PartType.Block, Hover = 0.5 },
-	Mage = { Size = Vector3.new(2.2, 2.2, 2.2), Shape = Enum.PartType.Ball, Hover = 2.5 },
+	Melee = { Size = Vector3.new(2.4, 2.4, 3), Shape = Enum.PartType.Block, Hover = 0 },
+	Ranged = { Size = Vector3.new(2.2, 2.2, 2.2), Shape = Enum.PartType.Ball, Hover = 2.5 },
 }
 
 type Follower = {
@@ -52,32 +51,34 @@ local function countSummons(data: any): number
 	return count
 end
 
-local function rollKind(): string
+-- สุ่มระดับตาม Rates ของไข่ แล้วสุ่มตัวในระดับนั้น
+local function rollKind(egg: any): string
 	local total = 0
 	for _, rarity in Config.RARITY_ORDER do
-		total += (Config.RARITIES :: any)[rarity].Weight
+		total += egg.Rates[rarity] or 0
 	end
 	local pick = rng:NextNumber(0, total)
 	local chosen = Config.RARITY_ORDER[1]
 	for _, rarity in Config.RARITY_ORDER do
-		pick -= (Config.RARITIES :: any)[rarity].Weight
-		if pick <= 0 then
+		local weight = egg.Rates[rarity] or 0
+		if weight > 0 then
+			pick -= weight
 			chosen = rarity
-			break
+			if pick <= 0 then
+				break
+			end
 		end
 	end
 	local pool = {}
-	for kind, def in Config.SUMMONS :: any do
-		if def.Rarity == chosen then
+	for _, kind in egg.Creatures do
+		local def = (Config.SUMMONS :: any)[kind]
+		if def and def.Rarity == chosen then
 			table.insert(pool, kind)
 		end
 	end
 	if #pool == 0 then
-		for kind in Config.SUMMONS :: any do
-			table.insert(pool, kind)
-		end
+		pool = table.clone(egg.Creatures)
 	end
-	table.sort(pool)
 	return pool[rng:NextInteger(1, #pool)]
 end
 
@@ -88,9 +89,11 @@ end
 
 local function createFollower(id: string, entry: any, position: Vector3): Follower
 	local def = (Config.SUMMONS :: any)[entry.Kind]
-	local visual = VISUALS[def.Role]
-	local color = Theme.RARITY_COLORS[def.Rarity] or Theme.TEXT
-	local fancy = def.Rarity == "Legendary" or def.Rarity == "Mythic"
+	local visual = VISUALS[def.AttackType]
+	local elementColor = Theme.ELEMENT_COLORS[def.Element] or Theme.TEXT
+	local rarityColor = Theme.RARITY_COLORS[def.Rarity] or Theme.TEXT
+	local rarityRank = table.find(Config.RARITY_ORDER, def.Rarity) or 1
+	local glows = rarityRank >= 3 -- Epic ขึ้นไปเรืองแสง
 
 	local model = Instance.new("Model")
 	model.Name = def.Name
@@ -98,8 +101,8 @@ local function createFollower(id: string, entry: any, position: Vector3): Follow
 	root.Name = "Root"
 	root.Shape = visual.Shape
 	root.Size = visual.Size
-	root.Color = color
-	root.Material = if fancy or def.Role == "Mage" then Enum.Material.Neon else Enum.Material.SmoothPlastic
+	root.Color = elementColor
+	root.Material = if glows then Enum.Material.Neon else Enum.Material.SmoothPlastic
 	root.CanCollide = false
 	root.CanTouch = false
 	root.CanQuery = false
@@ -124,10 +127,10 @@ local function createFollower(id: string, entry: any, position: Vector3): Follow
 		weld.Parent = eye
 		eye.Parent = model
 	end
-	if fancy or def.Role == "Mage" then
+	if glows then
 		local light = Instance.new("PointLight")
-		light.Color = color
-		light.Range = 8
+		light.Color = rarityColor
+		light.Range = 8 + rarityRank
 		light.Brightness = 1.5
 		light.Parent = root
 	end
@@ -159,7 +162,7 @@ local function createFollower(id: string, entry: any, position: Vector3): Follow
 	label.BackgroundTransparency = 1
 	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
-	label.TextColor3 = color
+	label.TextColor3 = rarityColor
 	label.TextStrokeTransparency = 0.3
 	label.Text = labelText(entry)
 	label.Parent = gui
@@ -191,7 +194,7 @@ local function ownerRoot(player: Player): BasePart?
 	return nil
 end
 
--- ให้ตัว summon ในโลกตรงกับทีมปัจจุบัน
+-- ให้ตัวสัตว์ในโลกตรงกับทีมปัจจุบัน
 local function refreshFollowers(player: Player)
 	local data = PlayerData.get(player)
 	if not data then
@@ -233,41 +236,54 @@ local function sync(player: Player)
 	refreshFollowers(player)
 end
 
-local function summon(player: Player): (boolean, any)
-	local data = PlayerData.get(player)
-	if not data then
+local function summon(player: Player, eggId: unknown, count: unknown): (boolean, any)
+	if type(eggId) ~= "string" or type(count) ~= "number" or not table.find(Config.ROLL_COUNTS, count) then
 		return false, nil
 	end
-	if data.Gems < Config.SUMMON_COST_GEMS then
-		return false, "Gems ไม่พอ"
+	local egg = (Config.EGGS :: any)[eggId]
+	local data = PlayerData.get(player)
+	if not egg or not data then
+		return false, nil
 	end
-	if countSummons(data) >= Config.MAX_SUMMONS then
-		return false, "ที่เก็บ summon เต็ม"
+	local price = egg.Price * count
+	if data.Coins < price then
+		return false, `ต้องใช้ {Formulas.format(price)} Coins`
 	end
-	local kind = rollKind()
-	local newId = ""
+	if countSummons(data) + count > Config.MAX_SUMMONS then
+		return false,
+			`กระเป๋าเต็ม (สูงสุด {Config.MAX_SUMMONS} ตัว) ปล่อยสัตว์บางตัวก่อน`
+	end
+	local results = {}
 	PlayerData.update(player, function(d)
-		newId = tostring(d.NextSummonId)
-		d.NextSummonId += 1
-		d.Gems -= Config.SUMMON_COST_GEMS
-		d.Summons[newId] = { Kind = kind, Level = 1, XP = 0 }
-		if #d.Equipped < Config.MAX_EQUIPPED then
-			table.insert(d.Equipped, newId)
+		d.Coins -= price
+		for _ = 1, count do
+			local id = tostring(d.NextSummonId)
+			local kind = rollKind(egg)
+			d.NextSummonId += 1
+			d.Summons[id] = { Kind = kind, Level = 1, XP = 0 }
+			if #d.Equipped < Config.MAX_EQUIPPED then
+				table.insert(d.Equipped, id)
+			end
+			table.insert(results, { Id = id, Kind = kind })
 		end
 	end)
 	sync(player)
-	return true, { Id = newId, Kind = kind }
+	return true, results
+end
+
+local function validId(id: unknown): boolean
+	return type(id) == "string" and #id <= MAX_ID_LENGTH
 end
 
 local function setEquipped(player: Player, id: unknown, equip: unknown): (boolean, string?)
-	if type(id) ~= "string" or #id > 16 or type(equip) ~= "boolean" then
+	if not validId(id) or type(equip) ~= "boolean" then
 		return false
 	end
 	local data = PlayerData.get(player)
-	if not data or not data.Summons[id] then
+	if not data or not data.Summons[id :: string] then
 		return false
 	end
-	local index = table.find(data.Equipped, id)
+	local index = table.find(data.Equipped, id :: string)
 	if equip then
 		if index then
 			return true
@@ -280,10 +296,29 @@ local function setEquipped(player: Player, id: unknown, equip: unknown): (boolea
 	end
 	PlayerData.update(player, function(d)
 		if equip then
-			table.insert(d.Equipped, id)
+			table.insert(d.Equipped, id :: string)
 		else
 			table.remove(d.Equipped, index :: number)
 		end
+	end)
+	sync(player)
+	return true
+end
+
+-- ปล่อยสัตว์ (ลบถาวร) — ต้องถอดออกจากทีมก่อน
+local function release(player: Player, id: unknown): (boolean, string?)
+	if not validId(id) then
+		return false
+	end
+	local data = PlayerData.get(player)
+	if not data or not data.Summons[id :: string] then
+		return false
+	end
+	if table.find(data.Equipped, id :: string) then
+		return false, "ถอดออกจากทีมก่อน"
+	end
+	PlayerData.update(player, function(d)
+		d.Summons[id :: string] = nil
 	end)
 	sync(player)
 	return true
@@ -299,36 +334,20 @@ function SummonService.grantXP(player: Player, amount: number)
 	PlayerData.update(player, function(d)
 		for _, id in d.Equipped do
 			local entry = d.Summons[id]
-			if entry and entry.Level < Config.SUMMON_MAX_LEVEL then
+			local stats = entry and Formulas.summonStats(entry.Kind, entry.Level)
+			if entry and stats and entry.Level < stats.MaxLevel then
 				entry.XP += xp
-				while
-					entry.Level < Config.SUMMON_MAX_LEVEL
-					and entry.XP >= Formulas.summonXpToNext(entry.Level)
-				do
+				while entry.Level < stats.MaxLevel and entry.XP >= Formulas.summonXpToNext(entry.Level) do
 					entry.XP -= Formulas.summonXpToNext(entry.Level)
 					entry.Level += 1
+				end
+				if entry.Level >= stats.MaxLevel then
+					entry.XP = 0
 				end
 			end
 		end
 	end)
 	sync(player)
-end
-
--- แทงก์ในทีมลดดาเมจที่เจ้าของโดน
-function SummonService.getTankReduction(player: Player): number
-	local data = PlayerData.get(player)
-	if not data then
-		return 0
-	end
-	local total = 0
-	for _, id in data.Equipped do
-		local entry = data.Summons[id]
-		local stats = entry and Formulas.summonStats(entry.Kind, entry.Level)
-		if stats then
-			total += stats.TankReduction
-		end
-	end
-	return math.min(total, Config.TANK_REDUCTION_CAP)
 end
 
 local function slotOffset(index: number, count: number): Vector3
@@ -343,6 +362,7 @@ local function thinkFor(player: Player, list: { [string]: Follower }, now: numbe
 	end
 	local ownerPosition = owner.Position
 	local groundY = ownerPosition.Y - 3
+	local rebirth = Formulas.rebirthMultiplier(data.Rebirths)
 	local target = EnemyService.findNearest(ownerPosition, Config.SUMMON_RANGE)
 	local count = #data.Equipped
 
@@ -368,26 +388,17 @@ local function thinkFor(player: Player, list: { [string]: Follower }, now: numbe
 				local targetPosition = target.root.Position
 				local goal = Vector3.new(targetPosition.X, y, targetPosition.Z)
 				local offset = Vector3.new(goal.X - here.X, 0, goal.Z - here.Z)
-				local reach = target.radius + (if stats.Role == "Mage" then MAGE_REACH else MELEE_REACH)
+				local reach = target.radius + stats.Reach
 				if offset.Magnitude > reach then
 					follower.align.Position = goal - offset.Unit * reach * 0.8
 				else
 					follower.align.Position = Vector3.new(here.X, y, here.Z)
 					if now - follower.lastAttack >= stats.AttackCooldown then
 						follower.lastAttack = now
-						local color = Theme.RARITY_COLORS[stats.Rarity] or Theme.TEXT
-						attackFx:FireAllClients(here, targetPosition, color)
-						if stats.SplashRadius > 0 then
-							EnemyService.damageArea(
-								targetPosition,
-								stats.SplashRadius,
-								stats.Damage,
-								player,
-								"Summon"
-							)
-						else
-							EnemyService.damage(target, stats.Damage, player, "Summon")
-						end
+						local color = Theme.ELEMENT_COLORS[stats.Element] or Theme.TEXT
+						local style = if stats.AttackType == "Ranged" then "Bolt" else "Slash"
+						attackFx:FireAllClients(here, targetPosition, color, style)
+						EnemyService.damage(target, stats.Damage * rebirth, player, "Summon")
 					end
 				end
 				if offset.Magnitude > 0.5 then
@@ -413,19 +424,25 @@ function SummonService.Start()
 	attackFx = Net.unreliable("AttackFx")
 
 	local allowSummon = RateLimit.new(3)
-	local allowEquip = RateLimit.new(10)
+	local allowManage = RateLimit.new(10)
 
-	Net.func("Summon").OnServerInvoke = function(player: Player)
+	Net.func("Summon").OnServerInvoke = function(player: Player, eggId: unknown, count: unknown)
 		if not allowSummon(player) then
 			return false, nil
 		end
-		return summon(player)
+		return summon(player, eggId, count)
 	end
 	Net.func("EquipSummon").OnServerInvoke = function(player: Player, id: unknown, equip: unknown)
-		if not allowEquip(player) then
+		if not allowManage(player) then
 			return false
 		end
 		return setEquipped(player, id, equip)
+	end
+	Net.func("ReleaseSummon").OnServerInvoke = function(player: Player, id: unknown)
+		if not allowManage(player) then
+			return false
+		end
+		return release(player, id)
 	end
 
 	local function onPlayer(player: Player)
